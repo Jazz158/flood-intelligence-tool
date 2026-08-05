@@ -15,6 +15,7 @@ function App() {
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const overlayLayerRef = useRef(null);
 
   const [token, setToken] = useState(null);
   const [beforeImage, setBeforeImage] = useState(null);
@@ -108,6 +109,17 @@ const handleRegionClick = async (region) => {
 
   setBeforeImage(before);
   setAfterImage(after);
+
+  const bounds = [
+    [region.lat - 0.15, region.lng - 0.15],
+    [region.lat + 0.15, region.lng + 0.15],
+  ];
+
+  if (overlayLayerRef.current) {
+    mapInstanceRef.current.removeLayer(overlayLayerRef.current);
+  }
+
+  overlayLayerRef.current = L.imageOverlay(after, bounds).addTo(mapInstanceRef.current);
 };
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
@@ -120,7 +132,20 @@ const handleRegionClick = async (region) => {
       </div>
       {(beforeImage || afterImage) && (
         <div style={{ position: 'absolute', top: 60, left: 10, zIndex: 1000 }}>
-          <button onClick={() => setShowAfter(!showAfter)} style={{ marginBottom: 4 }}>
+          <button
+            onClick={() => {
+              const newShowAfter = !showAfter;
+              setShowAfter(newShowAfter);
+
+              if (overlayLayerRef.current && mapInstanceRef.current) {
+                mapInstanceRef.current.removeLayer(overlayLayerRef.current);
+                const bounds = overlayLayerRef.current.getBounds();
+                const newImage = newShowAfter ? afterImage : beforeImage;
+                overlayLayerRef.current = L.imageOverlay(newImage, bounds).addTo(mapInstanceRef.current);
+              }
+            }}
+            style={{ marginBottom: 4 }}
+          >
             Show {showAfter ? 'Before (June)' : 'After (August)'}
           </button>
           <img
