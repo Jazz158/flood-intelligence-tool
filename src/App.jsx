@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -21,6 +21,9 @@ function App() {
   const [beforeImage, setBeforeImage] = useState(null);
   const [afterImage, setAfterImage] = useState(null);
   const [showAfter, setShowAfter] = useState(true);
+  const [isLoadingImagery, setIsLoadingImagery] = useState(false);
+  const [imageryError, setImageryError] = useState(null);
+  const [showAbout, setShowAbout] = useState(false);
   const hasToken = Boolean(token);
 
   useEffect(() => {
@@ -97,29 +100,41 @@ function App() {
     }),
   });
 
+  if (!response.ok) {
+    throw new Error('Failed to fetch imagery');
+  }
+
   const blob = await response.blob();
   return URL.createObjectURL(blob);
 };
 const handleRegionClick = async (region) => {
   if (!token) return;
   mapInstanceRef.current.flyTo([region.lat, region.lng], 11);
+  setIsLoadingImagery(true);
+  setImageryError(null);
 
-  const before = await fetchImagery(region, '2022-06-01', '2022-06-30');
-  const after = await fetchImagery(region, '2022-08-01', '2022-08-31');
+  try {
+    const before = await fetchImagery(region, '2022-06-01', '2022-06-30');
+    const after = await fetchImagery(region, '2022-08-01', '2022-08-31');
 
-  setBeforeImage(before);
-  setAfterImage(after);
+    setBeforeImage(before);
+    setAfterImage(after);
 
-  const bounds = [
-    [region.lat - 0.15, region.lng - 0.15],
-    [region.lat + 0.15, region.lng + 0.15],
-  ];
+    const bounds = [
+      [region.lat - 0.15, region.lng - 0.15],
+      [region.lat + 0.15, region.lng + 0.15],
+    ];
 
-  if (overlayLayerRef.current) {
-    mapInstanceRef.current.removeLayer(overlayLayerRef.current);
+    if (overlayLayerRef.current) {
+      mapInstanceRef.current.removeLayer(overlayLayerRef.current);
+    }
+
+    overlayLayerRef.current = L.imageOverlay(after, bounds).addTo(mapInstanceRef.current);
+  } catch (err) {
+    setImageryError('Failed to load satellite imagery. Please try again.');
+  } finally {
+    setIsLoadingImagery(false);
   }
-
-  overlayLayerRef.current = L.imageOverlay(after, bounds).addTo(mapInstanceRef.current);
 };
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
@@ -130,6 +145,50 @@ const handleRegionClick = async (region) => {
           </button>
         ))}
       </div>
+      <button
+        onClick={() => setShowAbout(!showAbout)}
+        style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, background: 'white', padding: '8px' }}
+      >
+        ℹ️ About
+      </button>
+      {showAbout && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 50,
+            right: 10,
+            zIndex: 1000,
+            background: 'white',
+            padding: '16px',
+            maxWidth: 300,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>About this tool</h3>
+          <p>
+            This tool compares real satellite imagery of Sindh, Pakistan before and during the 2022 floods —
+            one of the worst climate disasters in the country's recent history.
+          </p>
+          <p>
+            Imagery is pulled live from Sentinel-2, via the Copernicus Data Space Ecosystem. "Before" shows June 2022;
+            "after" shows August 2022, within the documented peak-flood window (22–28 August 2022).
+          </p>
+          <p>
+            Regions shown were confirmed among the hardest-hit districts in published flood research.
+          </p>
+          <button onClick={() => setShowAbout(false)}>Close</button>
+        </div>
+      )}
+      {isLoadingImagery && (
+        <div style={{ position: 'absolute', top: 10, right: 90, zIndex: 1000, background: 'white', padding: '8px' }}>
+          Loading satellite imagery...
+        </div>
+      )}
+      {imageryError && (
+        <div style={{ position: 'absolute', top: 60, left: 10, zIndex: 1000, background: '#fee', color: '#900', padding: '8px' }}>
+          {imageryError}
+        </div>
+      )}
       {(beforeImage || afterImage) && (
         <div style={{ position: 'absolute', top: 60, left: 10, zIndex: 1000 }}>
           <button
