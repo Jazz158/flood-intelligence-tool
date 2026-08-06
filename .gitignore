@@ -8,10 +8,12 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+flood-backend/node_modules
 dist
 dist-ssr
 *.local
 .env
+flood-backend/.env
 
 # Editor directories and files
 .vscode/*
