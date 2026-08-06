@@ -10,6 +10,37 @@ app.get('/', (req, res) => {
   res.send('Flood backend is running');
 });
 
+app.get('/api/token', async (req, res) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('grant_type', 'client_credentials');
+    params.append('client_id', process.env.SENTINEL_CLIENT_ID);
+    params.append('client_secret', process.env.SENTINEL_CLIENT_SECRET);
+
+    const response = await fetch('https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token',  {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({
+        error: 'Failed to fetch Sentinel Hub token',
+        details: errorText,
+      });
+    }
+
+    const tokenData = await response.json();
+    res.json(tokenData);
+  } catch (err) {
+    console.error('Error fetching token:', err);
+    res.status(500).json({ error: 'Failed to fetch token' });
+  }
+});
+
 app.post('/api/imagery', async (req, res) => {
   try {
     const { lat, lng, fromDate, toDate, accessToken } = req.body;
@@ -70,6 +101,7 @@ app.post('/api/imagery', async (req, res) => {
     res.set('Content-Type', response.headers.get('content-type') || 'image/png');
     res.send(Buffer.from(buffer));
   } catch (err) {
+    console.error('Error fetching imagery:', err);
     res.status(500).json({ error: 'Failed to fetch imagery' });
   }
 });
@@ -78,4 +110,3 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
-
