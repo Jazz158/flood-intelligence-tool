@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -66,37 +66,15 @@ function App() {
     mapInstanceRef.current = map;
   }, []);
   const fetchImagery = async (region, fromDate, toDate) => {
-  const bbox = [
-    region.lng - 0.15, region.lat - 0.15,
-    region.lng + 0.15, region.lat + 0.15,
-  ];
-
-  const evalscript = `
-    //VERSION=3
-    function setup() {
-      return { input: ["B02", "B03", "B04"], output: { bands: 3 } };
-    }
-    function evaluatePixel(sample) {
-      return [sample.B04 * 3.5, sample.B03 * 3.5, sample.B02 * 3.5];
-    }
-  `;
-
-  const response = await fetch('https://sh.dataspace.copernicus.eu/api/v1/process', {
+  const response = await fetch('/api/imagery', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      input: {
-        bounds: { bbox },
-        data: [{
-          type: 'sentinel-2-l2a',
-          dataFilter: { timeRange: { from: `${fromDate}T00:00:00Z`, to: `${toDate}T23:59:59Z` } },
-        }],
-      },
-      output: { width: 512, height: 512 },
-      evalscript,
+      lat: region.lat,
+      lng: region.lng,
+      fromDate,
+      toDate,
+      accessToken: token,
     }),
   });
 
@@ -220,12 +198,3 @@ const handleRegionClick = async (region) => {
 }
 
 export default App;
-
-
-
-
-
-
-
-
-
