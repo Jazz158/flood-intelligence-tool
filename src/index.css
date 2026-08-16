@@ -114,3 +114,22 @@ button:focus-visible {
   outline: 3px solid #1a73e8;
   outline-offset: 2px;
 }
+button {
+  background: #1a73e8;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: #1557b0;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
