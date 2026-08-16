@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -9,6 +9,8 @@ const REGIONS = [
   { name: 'Shikarpur', lat: 27.9560, lng: 68.6382 },
   { name: 'Kashmore', lat: 28.4321, lng: 69.5850 },
 ];
+
+const BACKEND_URL = 'https://flood-intelligence-tool-production.up.railway.app';
 
 function App() {
 
@@ -27,25 +29,14 @@ function App() {
   const hasToken = Boolean(token);
 
   useEffect(() => {
-    const fetchToken = async () => {
-      const response = await fetch(
-        'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            grant_type: 'client_credentials',
-            client_id: import.meta.env.VITE_SENTINEL_CLIENT_ID,
-            client_secret: import.meta.env.VITE_SENTINEL_CLIENT_SECRET,
-          }),
-        }
-      );
-      const data = await response.json();
-      setToken(data.access_token);
-    };
+  const fetchToken = async () => {
+    const response = await fetch(`${BACKEND_URL}/api/token`);
+    const data = await response.json();
+    setToken(data.access_token);
+  };
 
-    fetchToken();
-  }, []);
+  fetchToken();
+}, []);
 
   useEffect(() => {
     if (mapInstanceRef.current) return;
@@ -65,26 +56,29 @@ function App() {
 
     mapInstanceRef.current = map;
   }, []);
-  const fetchImagery = async (region, fromDate, toDate) => {
-  const response = await fetch('/api/imagery', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      lat: region.lat,
-      lng: region.lng,
-      fromDate,
-      toDate,
-      accessToken: token,
-    }),
-  });
+   const fetchImagery = async (region, fromDate, toDate) => {
+    const response = await fetch(`${BACKEND_URL}/api/imagery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lat: region.lat,
+        lng: region.lng,
+        fromDate,
+        toDate,
+        accessToken: token,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch imagery');
-  }
+    if (!response.ok) {
+      throw new Error('Failed to fetch imagery');
+    }
 
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
-};
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  };
+ 
+
+
 const handleRegionClick = async (region) => {
   if (!token) return;
   mapInstanceRef.current.flyTo([region.lat, region.lng], 11);
