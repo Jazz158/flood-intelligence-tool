@@ -1,8 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const OpenAI = require('openai');
 
 const app = express();
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 app.use(cors({
   origin: 'https://flood-intelligence-tool.vercel.app',
   methods: ['GET', 'POST'],
@@ -106,6 +111,25 @@ app.post('/api/imagery', async (req, res) => {
   } catch (err) {
     console.error('Error fetching imagery:', err);
     res.status(500).json({ error: 'Failed to fetch imagery' });
+  }
+});
+
+
+app.post('/api/analyze', async (req, res) => {
+  try {
+    const { location, fromDate, toDate } = req.body;
+
+    console.log('AI analysis requested:', {
+      location,
+      fromDate,
+      toDate,
+    });
+
+  } catch (err) {
+    console.error('AI analysis error:', err);
+    res.status(500).json({
+      error: 'Failed to generate AI analysis',
+    });
   }
 });
 
