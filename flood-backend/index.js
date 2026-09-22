@@ -4,15 +4,29 @@ const cors = require('cors');
 const OpenAI = require('openai');
 
 const app = express();
+const allowedOrigins = [
+  'https://flood-intelligence-tool.vercel.app',
+];
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 app.use(cors({
-  origin: 'https://flood-intelligence-tool.vercel.app',
+  origin(origin, callback) {
+    const isLocalhost =
+      origin &&
+      /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+
+    if (!origin || allowedOrigins.includes(origin) || isLocalhost) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST'],
 }));
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 app.get('/', (req, res) => {
   res.send('Flood backend is running');
@@ -20,6 +34,12 @@ app.get('/', (req, res) => {
 
 app.get('/api/token', async (req, res) => {
   try {
+    if (!process.env.SENTINEL_CLIENT_ID || !process.env.SENTINEL_CLIENT_SECRET) {
+      return res.status(500).json({
+        error: 'Sentinel credentials are missing on the backend',
+      });
+    }
+
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
     params.append('client_id', process.env.SENTINEL_CLIENT_ID);
@@ -114,10 +134,22 @@ app.post('/api/imagery', async (req, res) => {
   }
 });
 
-
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { location, fromDate, toDate } = req.body;
+     console.log('ANALYZE ROUTE HIT');
+    const {
+      location,
+      fromDate,
+      toDate,
+      beforeImage,
+      afterImage,
+    } = req.body;
+
+    if (!beforeImage || !afterImage) {
+      return res.status(400).json({
+        error: 'Both satellite images are required',
+      });
+    }
 
     console.log('AI analysis requested:', {
       location,
@@ -125,8 +157,61 @@ app.post('/api/analyze', async (req, res) => {
       toDate,
     });
 
+    const response = await openai.responses.create({
+      model: 'gpt-5.6-luna',
+      input: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: `
+You are analyzing satellite imagery for flooding.
+
+Location: ${location}
+
+The first image is BEFORE the floods (June 2022).
+The second image is DURING the floods (August 2022).
+
+Compare the two images.
+
+Return exactly these three things:
+
+1. What changed:
+One short sentence describing the visible change.
+
+2. Flooding severity:
+Choose only one:
+- Significant
+- Moderate
+- Minimal
+
+3. Affected areas:
+Briefly describe the visible areas that appear affected.
+
+Do not invent exact measurements, percentages, water depths, or statistics.
+Only describe what can reasonably be observed from the images.
+              `,
+            },
+            {
+              type: 'input_image',
+              image_url: beforeImage,
+            },
+            {
+              type: 'input_image',
+              image_url: afterImage,
+            },
+          ],
+        },
+      ],
+    });
+
+    res.json({
+      analysis: response.output_text,
+    });
   } catch (err) {
     console.error('AI analysis error:', err);
+
     res.status(500).json({
       error: 'Failed to generate AI analysis',
     });
