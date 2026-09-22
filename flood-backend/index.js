@@ -4,20 +4,25 @@ const cors = require('cors');
 const OpenAI = require('openai');
 
 const app = express();
-const allowedOrigins = [
-  'https://flood-intelligence-tool.vercel.app',
-];
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const allowedOrigins = [
+  'https://flood-intelligence-tool.vercel.app',
+];
+
 app.use(cors({
   origin(origin, callback) {
     const isLocalhost =
       origin &&
       /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
 
-    if (!origin || allowedOrigins.includes(origin) || isLocalhost) {
+    const isVercelPreview =
+      origin && /\.vercel\.app$/.test(origin);
+
+    if (!origin || allowedOrigins.includes(origin) || isLocalhost || isVercelPreview) {
       callback(null, true);
       return;
     }
